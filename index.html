@@ -113,91 +113,118 @@
     <div class="total-box" id="total_weight">ストック総合計: 0.00 kg</div>
 </div>
 <script>
-    // 変更前：let selectedT = 100;
     let selectedT = 60;
-    let activeInput = document.getElementById('h_val');
-    let isOverwriteMode = true;
-    let currentWeight = 0;
-    let stocks = {1:0, 2:0, 3:0, 4:0, 5:0};
+    let activeInput = document.getElementById('h_val'); 
+    let isOverwriteMode = true; 
+    let stocks = [0, 0, 0, 0, 0]; // ストック5面分のデータを記憶する箱
 
-    window.onload = function() { activeInput.focus(); };
+    window.onload = function() {
+        activeInput.focus();
+        calc();
+    };
+
     function selectT(value, element) {
         selectedT = value;
         document.querySelectorAll('.switch-btn').forEach(btn => btn.classList.remove('active'));
         element.classList.add('active');
         calc();
     }
-    function setActiveInput(inputElement) { activeInput = inputElement; isOverwriteMode = true; }
+
+    function setActiveInput(inputElement) {
+        activeInput = inputElement;
+        isOverwriteMode = true; 
+    }
+
     function changeCount(amount) {
         const countInput = document.getElementById('count');
         let currentCount = parseFloat(countInput.value) || 0;
         currentCount = Math.max(0, currentCount + amount);
         countInput.value = currentCount;
-        isOverwriteMode = true;
+        setActiveInput(countInput);
         calc();
     }
+
     function pressKey(key) {
         if (!activeInput) return;
         if (key === 'del') {
-            if (isOverwriteMode) { activeInput.value = ''; } else { activeInput.value = activeInput.value.slice(0, -1); }
-            isOverwriteMode = false;
+            if (isOverwriteMode) { activeInput.value = ''; } 
+            else { activeInput.value = activeInput.value.slice(0, -1); }
+            isOverwriteMode = false; 
         } else if (key === 'C') {
-            activeInput.value = ''; isOverwriteMode = false;
+            activeInput.value = '';
+            isOverwriteMode = false;
         } else if (key === 'OK') {
-            if (activeInput.id === 'h_val') { setActiveInput(document.getElementById('w_val')); }
+            if (activeInput.id === 'h_val') { setActiveInput(document.getElementById('w_val')); } 
             else if (activeInput.id === 'w_val') { setActiveInput(document.getElementById('count')); }
             activeInput.focus();
         } else {
             if (isOverwriteMode) {
-                if (key === '00') { activeInput.value = '0'; } else { activeInput.value = key; }
-                isOverwriteMode = false;
+                if (key === '00') { activeInput.value = '0'; } 
+                else { activeInput.value = key; }
+                isOverwriteMode = false; 
             } else {
-                if (activeInput.value === '0' && key !== '.') { activeInput.value = key; } else { activeInput.value += key; }
+                if (activeInput.value === '0' && key !== '.') { activeInput.value = key; } 
+                else { activeInput.value += key; }
             }
         }
         activeInput.focus();
         calc();
     }
+
+    // 🧮 メース専用の重量計算式
     function calc() {
-    const h = Math.max(0, parseFloat(document.getElementById('h_val').value) || 0);
-    const w = Math.max(0, parseFloat(document.getElementById('w_val').value) || 0);
-    const count = Math.max(0, parseFloat(document.getElementById('count').value) || 0);
-    
-    // 📐 メースの厚みごとの平米重量を設定
-    const maceWeights = { 60: 65, 75: 80, 80: 84, 100: 100 };
-    const unitWeight = maceWeights[selectedT] || 65;
-    
-    // 🧮 平米（㎡）を計算して、重量を出す
-    const area = (h * w) / 1000000;
-    const weight = area * unitWeight * count;
-    
-    const resultBox = document.getElementById('result');
-    resultBox.innerText = "合計重量: " + weight.toFixed(2) + " kg";
+        const h = Math.max(0, parseFloat(document.getElementById('h_val').value) || 0);
+        const w = Math.max(0, parseFloat(document.getElementById('w_val').value) || 0);
+        const count = Math.max(0, parseFloat(document.getElementById('count').value) || 0);
+        
+        const maceWeights = { 60: 65, 75: 80, 80: 84, 100: 100 };
+        const unitWeight = maceWeights[selectedT] || 65;
+        
+        const area = (h * w) / 1000000;
+        const currentWeight = area * unitWeight * count;
+        
+        const resultBox = document.getElementById('result');
+        resultBox.innerText = "現在の重量: " + currentWeight.toFixed(2) + " kg";
 
-    if (weight > 1000) {
-        resultBox.classList.add('over-weight');
-    } else {
-        resultBox.classList.remove('over-weight');
+        // 🚨 赤字にする仕組み（名前を「danger」に修正しました）
+        if (currentWeight > 1000) {
+            resultBox.classList.add('danger');
+        } else {
+            resultBox.classList.remove('danger');
+        }
+        
+        // 保存用に現在の重量をグローバルに一時キープ
+        window.latestCurrentWeight = currentWeight;
     }
-}
 
+    // 📥 ストックボタンを押したときの処理
     function saveStock(num) {
-        stocks[num] = currentWeight;
+        const currentWeight = window.latestCurrentWeight || 0;
+        stocks[num - 1] = currentWeight;
         document.getElementById('stock_' + num).innerText = currentWeight.toFixed(2) + " kg";
         calcTotal();
     }
+
+    // ❌ 消去ボタンを押したときの処理
     function clearStock(num) {
-        stocks[num] = 0;
+        stocks[num - 1] = 0;
         document.getElementById('stock_' + num).innerText = "0.00 kg";
         calcTotal();
     }
+
+    // 🧮 ストックの総合計を計算する処理
     function calcTotal() {
-        let total = stocks[1] + stocks[2] + stocks[3] + stocks[4] + stocks[5];
+        const total = stocks.reduce((sum, val) => sum + val, 0);
         const totalBox = document.getElementById('total_weight');
         totalBox.innerText = "ストック総合計: " + total.toFixed(2) + " kg";
-        if (total >= 1000) { totalBox.classList.add('danger'); } else { totalBox.classList.remove('danger'); }
+
+        // 🚨 総合計が1トンを超えた場合も赤字にする
+        if (total > 1000) {
+            totalBox.classList.add('danger');
+        } else {
+            totalBox.classList.remove('danger');
+        }
     }
-    calc();
 </script>
 </body>
 </html>
