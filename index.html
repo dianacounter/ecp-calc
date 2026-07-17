@@ -121,6 +121,28 @@
     window.onload = function() {
         activeInput.focus();
         calc();
+
+        // ⌨️ パソコンの物理キーボードからの入力を受け付ける設定を追加
+        document.addEventListener('keydown', function(event) {
+            const key = event.key;
+
+            // 数字 (0-9) と ドット (.) の入力に対応
+            if ((key >= '0' && key <= '9') || key === '.') {
+                pressKey(key);
+            } 
+            // BackSpaceキーで一文字消去 (⌫ボタンと同じ動作)
+            else if (key === 'Backspace') {
+                pressKey('del');
+            } 
+            // Deleteキーまたは「Escape」キーでクリア (Cボタンと同じ動作)
+            else if (key === 'Delete' || key === 'Escape') {
+                pressKey('C');
+            } 
+            // Enterキーで次の入力欄へ移動 (OKボタンと同じ動作)
+            else if (key === 'Enter') {
+                pressKey('OK');
+            }
+        });
     };
 
     function selectT(value, element) {
