@@ -82,7 +82,29 @@
         <button class="key" onclick="pressKey('.')">.</button>
         <button class="key" onclick="pressKey('OK')" style="background:#28a745; color:white;">OK</button>
     </div>
-        <h3>🏢 ECP重量計算 v0.1</h3>
+        <!-- 💡 タイトルエリアに「？」ボタンをセット -->
+<div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 15px; margin-bottom: 5px; order: 4;">
+    <h3 style="margin: 0; font-size: 14px; font-weight: bold; color: #777;">🏢 ECP重量計算 v0.2</h3>
+    <button type="button" onclick="toggleHelpModal(true)" style="width: 20px; height: 20px; border-radius: 50%; border: 1px solid #999; background: #eee; color: #555; font-size: 12px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;">?</button>
+</div>
+
+<!-- 📋 ポップアップ表示されるヘルプ画面の本体（初期状態は非表示） -->
+<div id="helpModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;">
+    <div style="background: white; padding: 20px; border-radius: 12px; max-width: 320px; width: 100%; box-shadow: 0 4px 15px rgba(0,0,0,0.2); position: relative;">
+        <h4 style="margin-top: 0; margin-bottom: 12px; text-align: center; border-bottom: 2px solid #ddd; padding-bottom: 6px; color: #333;">⌨️ キーボード操作ヘルプ</h4>
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px; color: #444;">
+            <tr style="border-bottom: 1px solid #eee;"><td style="padding: 6px 0; font-weight: bold; width: 45%;">[ 0 ] 〜 [ 9 ] [ . ]</td><td style="padding: 6px 0;">数字入力</td></tr>
+            <tr style="border-bottom: 1px solid #eee;"><td style="padding: 6px 0; font-weight: bold;">[ Backspace ]</td><td style="padding: 6px 0;">1文字消去</td></tr>
+            <tr style="border-bottom: 1px solid #eee;"><td style="padding: 6px 0; font-weight: bold;">[ Delete ] / [ Esc ]</td><td style="padding: 6px 0;">クリア (C)</td></tr>
+            <tr style="border-bottom: 1px solid #eee;"><td style="padding: 6px 0; font-weight: bold;">[ Enter ] / [ ↓ ] / [ → ]</td><td style="padding: 6px 0;">次の入力欄へ</td></tr>
+            <tr style="border-bottom: 1px solid #eee;"><td style="padding: 6px 0; font-weight: bold;">[ ↑ ] / [ ← ]</td><td style="padding: 6px 0;">前の入力欄へ</td></tr>
+            <tr style="border-bottom: 1px solid #eee;"><td style="padding: 6px 0; font-weight: bold;">[ F1 ] 〜 [ F5 ]</td><td style="padding: 6px 0; color: #0056b3;">ストックに保存</td></tr>
+            <tr style="border-bottom: 1px solid #eee;"><td style="padding: 6px 0; font-weight: bold;">[ Shift ] + [ F1〜F5 ]</td><td style="padding: 6px 0; color: #dc3545;">ストックを消去</td></tr>
+        </table>
+        <button type="button" onclick="toggleHelpModal(false)" style="margin-top: 15px; width: 100%; padding: 8px; background: #6c757d; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">閉じる</button>
+    </div>
+</div>
+
     <div class="stock-area">
         <div class="stock-row">
             <button class="stock-btn" onclick="saveStock(1)">📥 ストック 1 に保存</button>
@@ -120,28 +142,60 @@
 
     window.onload = function() {
         activeInput.focus();
-        calc();
+        if (typeof calc === 'function') calc();
 
-        // ⌨️ パソコンの物理キーボードからの入力を受け付ける設定を追加
+        // ⌨️ パソコンの物理キーボード入力を受け付ける設定（F1〜F5対応）
         document.addEventListener('keydown', function(event) {
             const key = event.key;
-
-            // 数字 (0-9) と ドット (.) の入力に対応
+            
+            // 1. 通常の数字と操作の入力
             if ((key >= '0' && key <= '9') || key === '.') {
                 pressKey(key);
-            } 
-            // BackSpaceキーで一文字消去 (⌫ボタンと同じ動作)
-            else if (key === 'Backspace') {
+            } else if (key === 'Backspace') {
                 pressKey('del');
-            } 
-            // Deleteキーまたは「Escape」キーでクリア (Cボタンと同じ動作)
-            else if (key === 'Delete' || key === 'Escape') {
+            } else if (key === 'Delete' || key === 'Escape') {
                 pressKey('C');
-            } 
-            // Enterキーで次の入力欄へ移動 (OKボタンと同じ動作)
-            else if (key === 'Enter') {
+            } else if (key === 'Enter') {
                 pressKey('OK');
             }
+            
+            // 2. ↕️ 左右上下の矢印キーで入力欄を移動
+            else if (key === 'ArrowDown' || key === 'ArrowRight') {
+                event.preventDefault();
+                pressKey('OK');
+            } else if (key === 'ArrowUp' || key === 'ArrowLeft') {
+                event.preventDefault();
+                if (activeInput.id === 'w_val') {
+                    setActiveInput(document.getElementById('h_val'));
+                } else if (activeInput.id === 'count') {
+                    setActiveInput(document.getElementById('w_val'));
+                }
+                activeInput.focus();
+            }
+
+            // 3. 📥 F1 〜 F5 キーでストックの保存・消去を制御
+            // 正規表現を使って「F1」から「F5」が押されたかを判定します
+            else if (/^F[1-5]$/.test(key)) {
+                event.preventDefault(); // ブラウザのヘルプ画面が開くのを防止する
+                const stockNum = parseInt(key.charAt(1)); // 「F3」なら「3」を取得
+
+                if (event.shiftKey) {
+                    // ❌ Shift + F1〜F5 が押されたら、その番号のストックを消去
+                    if (typeof clearStock === 'function') clearStock(stockNum);
+                } else {
+                    // 📥 F1〜F5 が普通に押されたら、その番号のストックに保存
+                    if (typeof saveStock === 'function') saveStock(stockNum);
+                }
+            }
+        });
+
+        // 🔄 TabやShift+Tabでの移動を検知する設定
+        const inputs = [document.getElementById('h_val'), document.getElementById('w_val'), document.getElementById('count')];
+        inputs.forEach(function(inputElement) {
+            if (!inputElement) return;
+            inputElement.addEventListener('focus', function() {
+                setActiveInput(this);
+            });
         });
     };
 
@@ -247,6 +301,15 @@
             totalBox.classList.remove('danger');
         }
     }
+
+    // 📋 ヘルプ画面を表示・非表示にする関数を追加
+    function toggleHelpModal(show) {
+        const modal = document.getElementById('helpModal');
+        if (modal) {
+            modal.style.display = show ? 'flex' : 'none';
+        }
+    }
+
 </script>
 </body>
 </html>
