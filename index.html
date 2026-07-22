@@ -137,17 +137,17 @@
     let selectedT = 60;
     let activeInput = document.getElementById('h_val'); 
     let isOverwriteMode = true; 
-    let stocks = [0, 0, 0, 0, 0]; // ストック5面分のデータを記憶する箱
+    let currentWeight = 0;
+    
+    // 💡 絶対に文字が消えない安全な形式でストックを初期化
+    let stocks = {1:0, 2:0, 3:0, 4:0, 5:0};
 
-    window.onload = function() {
-        activeInput.focus();
-        if (typeof calc === 'function') calc();
+    // ⌨️ パソコンの物理キーボード・テンキー入力を受け付けるもっともシンプルな設定
+    window.onload = function() { 
+        activeInput.focus(); 
 
-        // ⌨️ パソコンの物理キーボード入力を受け付ける設定（F1〜F5対応）
         document.addEventListener('keydown', function(event) {
             const key = event.key;
-            
-            // 1. 通常の数字と操作の入力
             if ((key >= '0' && key <= '9') || key === '.') {
                 pressKey(key);
             } else if (key === 'Backspace') {
@@ -157,44 +157,6 @@
             } else if (key === 'Enter') {
                 pressKey('OK');
             }
-            
-            // 2. ↕️ 左右上下の矢印キーで入力欄を移動
-            else if (key === 'ArrowDown' || key === 'ArrowRight') {
-                event.preventDefault();
-                pressKey('OK');
-            } else if (key === 'ArrowUp' || key === 'ArrowLeft') {
-                event.preventDefault();
-                if (activeInput.id === 'w_val') {
-                    setActiveInput(document.getElementById('h_val'));
-                } else if (activeInput.id === 'count') {
-                    setActiveInput(document.getElementById('w_val'));
-                }
-                activeInput.focus();
-            }
-
-            // 3. 📥 F1 〜 F5 キーでストックの保存・消去を制御
-            // 正規表現を使って「F1」から「F5」が押されたかを判定します
-            else if (/^F[1-5]$/.test(key)) {
-                event.preventDefault(); // ブラウザのヘルプ画面が開くのを防止する
-                const stockNum = parseInt(key.charAt(1)); // 「F3」なら「3」を取得
-
-                if (event.shiftKey) {
-                    // ❌ Shift + F1〜F5 が押されたら、その番号のストックを消去
-                    if (typeof clearStock === 'function') clearStock(stockNum);
-                } else {
-                    // 📥 F1〜F5 が普通に押されたら、その番号のストックに保存
-                    if (typeof saveStock === 'function') saveStock(stockNum);
-                }
-            }
-        });
-
-        // 🔄 TabやShift+Tabでの移動を検知する設定
-        const inputs = [document.getElementById('h_val'), document.getElementById('w_val'), document.getElementById('count')];
-        inputs.forEach(function(inputElement) {
-            if (!inputElement) return;
-            inputElement.addEventListener('focus', function() {
-                setActiveInput(this);
-            });
         });
     };
 
@@ -205,8 +167,8 @@
         calc();
     }
 
-    function setActiveInput(inputElement) {
-        activeInput = inputElement;
+    function setActiveInput(inputElement) { 
+        activeInput = inputElement; 
         isOverwriteMode = true; 
     }
 
@@ -215,28 +177,26 @@
         let currentCount = parseFloat(countInput.value) || 0;
         currentCount = Math.max(0, currentCount + amount);
         countInput.value = currentCount;
-        setActiveInput(countInput);
+        isOverwriteMode = true;
         calc();
     }
-
     function pressKey(key) {
         if (!activeInput) return;
         if (key === 'del') {
             if (isOverwriteMode) { activeInput.value = ''; } 
             else { activeInput.value = activeInput.value.slice(0, -1); }
-            isOverwriteMode = false; 
-        } else if (key === 'C') {
-            activeInput.value = '';
             isOverwriteMode = false;
+        } else if (key === 'C') {
+            activeInput.value = ''; isOverwriteMode = false;
         } else if (key === 'OK') {
-            if (activeInput.id === 'h_val') { setActiveInput(document.getElementById('w_val')); } 
+            if (activeInput.id === 'h_val') { setActiveInput(document.getElementById('w_val')); }
             else if (activeInput.id === 'w_val') { setActiveInput(document.getElementById('count')); }
             activeInput.focus();
         } else {
             if (isOverwriteMode) {
                 if (key === '00') { activeInput.value = '0'; } 
                 else { activeInput.value = key; }
-                isOverwriteMode = false; 
+                isOverwriteMode = false;
             } else {
                 if (activeInput.value === '0' && key !== '.') { activeInput.value = key; } 
                 else { activeInput.value += key; }
@@ -246,69 +206,58 @@
         calc();
     }
 
-    // 🧮 メース専用の重量計算式
+    // 🧮 アイカテック（メース）の平米重量計算式（50mm厚も完全対応）
     function calc() {
         const h = Math.max(0, parseFloat(document.getElementById('h_val').value) || 0);
         const w = Math.max(0, parseFloat(document.getElementById('w_val').value) || 0);
         const count = Math.max(0, parseFloat(document.getElementById('count').value) || 0);
         
-        const maceWeights = { 60: 65, 75: 80, 80: 84, 100: 100 };
+        const maceWeights = { 50: 55, 60: 65, 75: 80, 100: 100 };
         const unitWeight = maceWeights[selectedT] || 65;
         
         const area = (h * w) / 1000000;
-        const currentWeight = area * unitWeight * count;
+        currentWeight = area * unitWeight * count;
         
         const resultBox = document.getElementById('result');
         resultBox.innerText = "現在の重量: " + currentWeight.toFixed(2) + " kg";
-
-        // 🚨 赤字にする仕組み（名前を「danger」に修正しました）
-        if (currentWeight > 1000) {
-            resultBox.classList.add('danger');
-        } else {
-            resultBox.classList.remove('danger');
-        }
         
-        // 保存用に現在の重量をグローバルに一時キープ
-        window.latestCurrentWeight = currentWeight;
+        if (currentWeight >= 1000) { 
+            resultBox.classList.add('danger'); 
+        } else { 
+            resultBox.classList.remove('danger'); 
+        }
     }
 
-    // 📥 ストックボタンを押したときの処理
     function saveStock(num) {
-        const currentWeight = window.latestCurrentWeight || 0;
-        stocks[num - 1] = currentWeight;
+        stocks[num] = currentWeight;
         document.getElementById('stock_' + num).innerText = currentWeight.toFixed(2) + " kg";
         calcTotal();
     }
 
-    // ❌ 消去ボタンを押したときの処理
     function clearStock(num) {
-        stocks[num - 1] = 0;
+        stocks[num] = 0;
         document.getElementById('stock_' + num).innerText = "0.00 kg";
         calcTotal();
     }
 
-    // 🧮 ストックの総合計を計算する処理
     function calcTotal() {
-        const total = stocks.reduce((sum, val) => sum + val, 0);
+        let total = stocks[1] + stocks[2] + stocks[3] + stocks[4] + stocks[5];
         const totalBox = document.getElementById('total_weight');
         totalBox.innerText = "ストック総合計: " + total.toFixed(2) + " kg";
-
-        // 🚨 総合計が1トンを超えた場合も赤字にする
-        if (total > 1000) {
-            totalBox.classList.add('danger');
-        } else {
-            totalBox.classList.remove('danger');
+        
+        if (total >= 1000) { 
+            totalBox.classList.add('danger'); 
+        } else { 
+            totalBox.classList.remove('danger'); 
         }
     }
 
-    // 📋 ヘルプ画面を表示・非表示にする関数を追加
     function toggleHelpModal(show) {
         const modal = document.getElementById('helpModal');
-        if (modal) {
-            modal.style.display = show ? 'flex' : 'none';
-        }
+        if (modal) { modal.style.display = show ? 'flex' : 'none'; }
     }
 
+    calc();
 </script>
 </body>
 </html>
