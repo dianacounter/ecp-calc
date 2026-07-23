@@ -83,7 +83,7 @@
     </div>
         <!-- 💡 タイトルエリアに「？」ボタンをセット -->
 <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 15px; margin-bottom: 5px; order: 4;">
-    <h3 style="margin: 0; font-size: 14px; font-weight: bold; color: #777;">🏢 ECP重量計算 v0.3</h3>
+    <h3 style="margin: 0; font-size: 14px; font-weight: bold; color: #777;">🏢 ECP重量計算 v1.0</h3>
     <button type="button" onclick="toggleHelpModal(true)" style="width: 20px; height: 20px; border-radius: 50%; border: 1px solid #999; background: #eee; color: #555; font-size: 12px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;">?</button>
 </div>
 
@@ -142,12 +142,14 @@
     // 💡 絶対に文字が消えない安全な形式でストックを初期化
     let stocks = {1:0, 2:0, 3:0, 4:0, 5:0};
 
-    // ⌨️ パソコンの物理キーボード・テンキー入力を受け付けるもっともシンプルな設定
+    // ⌨️ パソコンの物理キーボード・テンキー・ファンクションキー入力をすべて受け付ける設定
     window.onload = function() { 
         activeInput.focus(); 
 
         document.addEventListener('keydown', function(event) {
             const key = event.key;
+            
+            // 1. 通常の数字と基本操作（テンキーの心臓部）
             if ((key >= '0' && key <= '9') || key === '.') {
                 pressKey(key);
             } else if (key === 'Backspace') {
@@ -156,6 +158,22 @@
                 pressKey('C');
             } else if (key === 'Enter') {
                 pressKey('OK');
+            }
+            
+            // 2. 📥 F1 〜 F5 キーを検知する安全なスイッチ（保存・消去の復活）
+            else if (key === 'F1' || key === 'F2' || key === 'F3' || key === 'F4' || key === 'F5') {
+                event.preventDefault(); // ブラウザのヘルプが勝手に開くのをブロック
+                
+                // 押されたキーから数字（1〜5）を取得
+                const stockNum = parseInt(key.replace('F', '')); 
+
+                if (event.shiftKey) {
+                    // ❌ Shiftと一緒に押されていたら消去
+                    clearStock(stockNum);
+                } else {
+                    // 📥 普通に押されていたら現在の重量を保存
+                    saveStock(stockNum);
+                }
             }
         });
     };
@@ -177,9 +195,10 @@
         let currentCount = parseFloat(countInput.value) || 0;
         currentCount = Math.max(0, currentCount + amount);
         countInput.value = currentCount;
-        isOverwriteMode = true;
+        setActiveInput(countInput);
         calc();
     }
+
     function pressKey(key) {
         if (!activeInput) return;
         if (key === 'del') {
